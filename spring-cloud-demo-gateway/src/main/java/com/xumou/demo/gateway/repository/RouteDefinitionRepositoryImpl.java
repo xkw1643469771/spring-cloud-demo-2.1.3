@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@Component
+//@Component
 public class RouteDefinitionRepositoryImpl implements RouteDefinitionRepository {
 
     @Override

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 
-@Component
+//@Component
 public class OneFilterFactory extends AbstractGatewayFilterFactory {
 
     public GatewayFilter apply(Object config) {
