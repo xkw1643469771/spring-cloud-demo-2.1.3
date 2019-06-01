@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+//动态路由
 //@Component
 public class RouteDefinitionRepositoryImpl implements RouteDefinitionRepository {
 

@@ -16,4 +16,10 @@ public class FeignController {
         return webOneFeign.test();
     }
 
+    @GetMapping("test2")
+    public Object test2(){
+        return "SUCCESS";
+    }
+
+
 }
