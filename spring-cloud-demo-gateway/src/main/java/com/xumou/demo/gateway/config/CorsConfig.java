@@ -26,12 +26,6 @@ public class CorsConfig {
         // 跨域设置
         return (ServerWebExchange ctx, WebFilterChain chain) -> {
             ServerHttpRequest request = ctx.getRequest();
-            System.out.println(request.getURI());
-            System.out.println(request.getCookies().get("token"));
-            ctx.getResponse().addCookie(ResponseCookie
-                    .from("token",Math.random()+"")
-                    .path("/")
-                    .build());
             if (CorsUtils.isCorsRequest(request)) {
                 HttpHeaders requestHeaders = request.getHeaders();
                 ServerHttpResponse response = ctx.getResponse();
@@ -53,6 +47,21 @@ public class CorsConfig {
 
             }
             return chain.filter(ctx);
+        };
+    }
+
+    @Bean
+    @Order(-2)
+    public WebFilter webFilter(){
+        return (exchange, chain) -> {
+            ServerHttpRequest request = exchange.getRequest();
+            System.out.println(request.getURI());
+            System.out.println(request.getCookies().get("token"));
+            exchange.getResponse().addCookie(ResponseCookie
+                    .from("token",Math.random()+"")
+                    .path("/")
+                    .build());
+            return chain.filter(exchange);
         };
     }
 
