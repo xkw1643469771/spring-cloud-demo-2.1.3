@@ -55,12 +55,19 @@ public class CorsConfig {
     public WebFilter webFilter(){
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
+
             System.out.println(request.getURI());
+
             System.out.println(request.getCookies().get("token"));
             exchange.getResponse().addCookie(ResponseCookie
                     .from("token",Math.random()+"")
                     .path("/")
                     .build());
+
+
+            System.out.println(request.getHeaders().get("token"));
+            exchange.getResponse().getHeaders().add("token",Math.random() + "");
+
             return chain.filter(exchange);
         };
     }
