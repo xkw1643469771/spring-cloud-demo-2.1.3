@@ -20,7 +20,7 @@ public class RedisLock {
     private static StringRedisTemplate stringRedisTemplate;
 
     private static final int TIMEOUT = 20;
-    private static final int RETRY_TIMER = 1000;
+    private static final int RETRY_TIME = 1000;
 
     @Autowired
     private RedisLock(StringRedisTemplate stringRedisTemplate){
@@ -28,21 +28,26 @@ public class RedisLock {
     }
 
     public static void lock(String key){
+        lock(key, RETRY_TIME);
+    }
+
+    public static void lock(String key, long retryTime){
         Boolean result = tryLock(key);
         while(!result){
-            sleep(RETRY_TIMER);
+            sleep(retryTime);
             result = tryLock(key);
         }
     }
 
     public static boolean tryLock(String key){
-        Boolean result = stringRedisTemplate.opsForValue().setIfAbsent(key, getLockKey(), TIMEOUT, TimeUnit.SECONDS);
+        String lockKey  = getLockKey();
+        Boolean result = stringRedisTemplate.opsForValue().setIfAbsent(key, lockKey, TIMEOUT, TimeUnit.SECONDS);
         if(result){
             countAdd();
-            Var.treeMapSynchronized(Var.ADD, Var.generatorKey(), new LockObj(key, getLockKey()));
+            Var.treeMapSynchronized(Var.ADD, Var.generatorKey(), new LockObj(key, lockKey));
         }else{
             String val = stringRedisTemplate.opsForValue().get(key);
-            if(getLockKey().equals(val)){
+            if(lockKey.equals(val)){
                 countAdd();
                 result = true;
             }
@@ -53,8 +58,9 @@ public class RedisLock {
     public static void unlock(String key){
         countSub();
         if(isUnlock()){
+            String lockKey  = getLockKey();
             String script = "if redis.call('get', KEYS[1]) == ARGV[1] then redis.call('del', KEYS[1]) return 'yes' else return 'no' end";
-            stringRedisTemplate.execute(RedisScript.of(script), Arrays.asList(key), getLockKey());
+            stringRedisTemplate.execute(RedisScript.of(script), Arrays.asList(key), lockKey);
         }
     }
 
@@ -188,8 +194,8 @@ public class RedisLock {
     }
 
     private static class LockObj {
-        private String key;
-        private String value;
+        private final String key;
+        private final String value;
         public LockObj(String key, String value){
             this.key = key;
             this.value = value;
