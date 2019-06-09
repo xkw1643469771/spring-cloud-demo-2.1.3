@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -31,16 +32,27 @@ public class RedisLock {
         lock(key, RETRY_TIME);
     }
 
+    public static void lock(String key, String lockKey){
+        lock(key, lockKey, RETRY_TIME);
+    }
+
     public static void lock(String key, long retryTime){
-        Boolean result = tryLock(key);
-        while(!result){
-            sleep(retryTime);
-            result = tryLock(key);
-        }
+        lock(key, getLockKey(), retryTime);
     }
 
     public static boolean tryLock(String key){
-        String lockKey  = getLockKey();
+        return tryLock(key, getLockKey());
+    }
+
+    public static void lock(String key, String lockKey, long retryTime){
+        Boolean result = tryLock(key, lockKey);
+        while(!result){
+            sleep(retryTime);
+            result = tryLock(key, lockKey);
+        }
+    }
+
+    public static boolean tryLock(String key, String lockKey){
         Boolean result = stringRedisTemplate.opsForValue().setIfAbsent(key, lockKey, TIMEOUT, TimeUnit.SECONDS);
         if(result){
             countAdd();
@@ -56,11 +68,16 @@ public class RedisLock {
     }
 
     public static void unlock(String key){
+        String lockKey  = getLockKey();
+        unlock(key, lockKey);
+    }
+
+    public static void unlock(String key, String lockKey){
         countSub();
         if(isUnlock()){
-            String lockKey  = getLockKey();
             String script = "if redis.call('get', KEYS[1]) == ARGV[1] then redis.call('del', KEYS[1]) return 'yes' else return 'no' end";
             stringRedisTemplate.execute(RedisScript.of(script), Arrays.asList(key), lockKey);
+            Var.treeMapSynchronized(Var.DEL_UNLOCK_KEY,null, new LockObj(key, lockKey));
         }
     }
 
@@ -119,10 +136,13 @@ public class RedisLock {
         private static TreeMap<Long, LockObj> treeMap = new TreeMap<>();
         private static boolean flag = false;
 
+        private static final Object lock = new Object();
+
         static final int ADD = 1;
         static final int DEL = 2;
         static final int GET = 3;
         static final int GET_FIRST_ENTER = 4;
+        static final int DEL_UNLOCK_KEY = 5;
 
         static final long INTERVAL = TIMEOUT * 500;
 
@@ -156,9 +176,9 @@ public class RedisLock {
             if(timer <= 0){
                 return;
             }
-            synchronized(treeMap){
+            synchronized(lock){
                 try {
-                    treeMap.wait(timer);
+                    lock.wait(timer);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -166,8 +186,8 @@ public class RedisLock {
         }
 
         static void treeMapNotifyAll(){
-            synchronized(treeMap){
-                treeMap.notifyAll();
+            synchronized(lock){
+                lock.notifyAll();
                 flag = true;
             }
         }
@@ -186,6 +206,15 @@ public class RedisLock {
                     return (T)treeMap.get(key);
                 case GET_FIRST_ENTER :
                     return (T)treeMap.firstEntry();
+                case DEL_UNLOCK_KEY :
+                    Iterator<Map.Entry<Long, LockObj>> iterator = treeMap.entrySet().iterator();
+                    while(iterator.hasNext()){
+                        Map.Entry<Long, LockObj> next = iterator.next();
+                        if(next.getValue().key.equals(lockObj.key) && next.getValue().value.equals(lockObj.value)){
+                            iterator.remove();
+                        }
+                    }
+                    return null;
                 default:
                     throw new RuntimeException("无效操作类型");
             }

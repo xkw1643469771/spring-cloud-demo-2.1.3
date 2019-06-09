@@ -3,25 +3,14 @@ package com.xumou.demo.lock.redis.controller;
 import com.xumou.demo.lock.redis.utils.RedisLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.data.redis.core.script.RedisScript;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 @RestController
 public class LockRedisController {
@@ -33,13 +22,15 @@ public class LockRedisController {
 
     @GetMapping("lock")
     public Object lock(Long startTimer){
-        RedisLock.lock("test", 1000);
-        int timer = random.nextInt(1);
+        String key = String.valueOf(random.nextInt(1000));
+        String val = UUID.randomUUID().toString();
+        RedisLock.lock(key);
+        int timer = random.nextInt(100);
         RedisLock.sleep(timer);
         sumTimer += timer;
         long long2 = System.currentTimeMillis() - startTimer;
         logger.info("执行id：" + count++ + "\t\t本次等待：" + timer + "\t\t总等待：" + sumTimer +"\t\t经过时间：" + long2 + "\t\t时间差：" + (long2 - sumTimer));
-        RedisLock.unlock("test");
+        RedisLock.unlock(key);
         return "SUCCESS";
     }
 
