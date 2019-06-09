@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 基于redis的可重入锁
@@ -53,28 +53,28 @@ public class RedisLock {
     }
 
     public static boolean tryLock(String key, String lockKey){
-        Boolean result = stringRedisTemplate.opsForValue().setIfAbsent(key, lockKey, TIMEOUT, TimeUnit.SECONDS);
-        if(result){
-            countAdd();
+        String script = "if redis.call('set', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2]) then return else return redis.call('get', KEYS[1]) end";
+        Object execute = stringRedisTemplate.execute(RedisScript.of(script, String.class), Arrays.asList(key), lockKey, String.valueOf(TIMEOUT));
+        if(execute == null){
+            countAdd(key, lockKey);
             Var.treeMapSynchronized(Var.ADD, Var.generatorKey(), new LockObj(key, lockKey));
+            return true;
         }else{
-            String val = stringRedisTemplate.opsForValue().get(key);
-            if(lockKey.equals(val)){
-                countAdd();
-                result = true;
+            if(execute.equals(lockKey)){
+                countAdd(key, lockKey);
+                return true;
+            }else{
+                return false;
             }
         }
-        return result;
     }
 
     public static void unlock(String key){
-        String lockKey  = getLockKey();
-        unlock(key, lockKey);
+        unlock(key, getLockKey());
     }
 
     public static void unlock(String key, String lockKey){
-        countSub();
-        if(isUnlock()){
+        if(countSub(key, lockKey)){
             String script = "if redis.call('get', KEYS[1]) == ARGV[1] then redis.call('del', KEYS[1]) return 'yes' else return 'no' end";
             stringRedisTemplate.execute(RedisScript.of(script), Arrays.asList(key), lockKey);
             Var.treeMapSynchronized(Var.DEL_UNLOCK_KEY,null, new LockObj(key, lockKey));
@@ -105,35 +105,41 @@ public class RedisLock {
         }
     }
 
-    private static void countAdd(){
-        Integer integer = Var.count.get();
+    private static void countAdd(String key, String lockKey){
+        String countKey = countKey(key, lockKey);
+        Integer integer = Var.countMap.get(countKey);
         if(integer == null){
             integer = 0;
         }
-        Var.count.set(integer + 1);
+        Var.countMap.put(countKey, integer + 1);
     }
 
-    private static void countSub(){
-        Integer integer = Var.count.get();
+    private static boolean countSub(String key, String lockKey){
+        String countKey = countKey(key, lockKey);
+        Integer integer = Var.countMap.get(countKey);
         if(integer != null) {
-            Var.count.set(integer - 1);
-        }
-    }
-
-    private static boolean isUnlock(){
-        Integer integer = Var.count.get();
-        if(integer != null){
-            return integer <= 0;
+            integer --;
+            boolean result = integer <= 0;
+            if(result){
+                Var.countMap.remove(countKey(key, lockKey));
+            }else{
+                Var.countMap.put(countKey, integer);
+            }
+            return result;
         }else{
             return true;
         }
     }
 
+    private static String countKey(String key, String lockKey){
+        return key + "|" + lockKey;
+    }
+
     private static class Var{
 
         private static ThreadLocal<String> lockKey = new ThreadLocal<>();
-        private static ThreadLocal<Integer> count = new ThreadLocal<>();
         private static TreeMap<Long, LockObj> treeMap = new TreeMap<>();
+        private static Map<String, Integer> countMap = new ConcurrentHashMap<>();
         private static boolean flag = false;
 
         private static final Object lock = new Object();
@@ -163,6 +169,8 @@ public class RedisLock {
                             treeMapSynchronized(DEL, entry.getKey(), null);
                             if(result){
                                 treeMapSynchronized(ADD, generatorKey(), entry.getValue());
+                            }else{
+                                countMap.remove(countKey(entry.getValue().key, entry.getValue().value));
                             }
                         }
                     }catch(Exception e){
