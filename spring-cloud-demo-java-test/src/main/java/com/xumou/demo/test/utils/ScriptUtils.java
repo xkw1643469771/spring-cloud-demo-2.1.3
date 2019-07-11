@@ -7,6 +7,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.LinkedList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ScriptUtils {
 
@@ -46,6 +49,48 @@ public class ScriptUtils {
             closeable.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    // =================================================================================================================
+
+    private static ExecutorService es = Executors.newCachedThreadPool();
+
+    public static void execute(Run run){
+        es.execute(() -> {
+            try {
+                run.run();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public interface Run{
+        void run() throws Exception;
+    }
+
+    // =================================================================================================================
+
+    private static ThreadLocal<LinkedList> timer = new ThreadLocal<>();
+
+    public static void timerStart(){
+        LinkedList list = timer.get();
+        if(list==null){
+            timer.set(new LinkedList());
+            list = timer.get();
+        }
+        list.add(System.currentTimeMillis());
+    }
+
+    public static void timerEnd(){
+        try{
+            LinkedList<Long> list = timer.get();
+            long s1 = list.getLast();
+            long s2 = System.currentTimeMillis();
+            System.out.println("用时： " + (s2 - s1) + " 毫秒");
+        }catch (Exception e){
+            System.err.println("没有拿到开始时间");
         }
     }
 
