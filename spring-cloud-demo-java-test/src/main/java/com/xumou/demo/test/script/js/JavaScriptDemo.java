@@ -8,6 +8,9 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 public class JavaScriptDemo {
 
@@ -48,7 +51,7 @@ public class JavaScriptDemo {
         scriptEngine.eval("test.clearObj({a:1,b:2})");
     }
 
-    // 测试时间
+    // 测试js时间
     @Test
     public void test3() throws ScriptException{
         ScriptUtils.timerStart();
@@ -63,7 +66,7 @@ public class JavaScriptDemo {
         ScriptUtils.timerEnd();
     }
 
-    // 测试时间
+    // 测试java时间
     @Test
     public void test4() throws ScriptException{
         ScriptUtils.timerStart();
@@ -76,6 +79,30 @@ public class JavaScriptDemo {
         ScriptUtils.timerEnd();
     }
 
+    //和java交互
+    @Test
+    public void test5() throws ScriptException {
+        Map map = new HashMap();
+        map.put("a", "123");
+        map.put("b", "123");
+        map.put("c", new BigDecimal("12312312312321313131312313123123123123"));
+        scriptEngine.put("a", map);
+        scriptEngine.eval("test.params(a.a,a.b,a.c)");
+    }
+
+    //长整数
+    @Test
+    public void test6() throws ScriptException {
+        Object eval = scriptEngine.eval("var a = test.bigNumber();");
+        System.out.println(scriptEngine.get("a"));
+        System.out.println(new BigDecimal(scriptEngine.get("a").toString()));
+    }
+
+    //测试语法
+    @Test
+    public void test7() throws ScriptException {
+        Object eval = scriptEngine.eval("var a = {}; a[123]=342342; a['123123']=123123; var b = {}; a[b] = 423432;print(a[b])");
+    }
     // =================================================================================================================
 
     public void setAttr(String name, String filename) throws ScriptException {
