@@ -1,113 +1,109 @@
 package com.xumou.demo.test.script.js;
 
 import com.xumou.demo.test.utils.ScriptUtils;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class JavaScriptDemo {
 
-    public static final String NAME_JS = "js";
-    public static final String SRC_PATH = "./src/main/resources/script/js/";
-
-    ScriptEngine scriptEngine;
+    public static final String JS_PATH = "script/js/";
+    ScriptEngineManager manager;
+    ScriptEngine engine;
+    Map<String, ScriptObjectMirror> ruleMap;
+    ScriptObjectMirror common;
 
     @Before
-    public void init() throws ScriptException {
-        ScriptEngineManager manager = new ScriptEngineManager();
-        scriptEngine = manager.getEngineByName(NAME_JS);
-        setAttr("test", "test.js");
+    public void before(){
+        manager = new ScriptEngineManager();
+        engine = manager.getEngineByName("js");
+        ruleMap = new ConcurrentHashMap<>();
+        common = readJs("common");
     }
 
-    // 测试是否线程安全, 不安全
     @Test
-    public void test1() throws ScriptException {
-        scriptEngine.eval("var abc = (function(){ var count = 0; return function(){ count++; return count.toString(); }})()");
-        ScriptUtils.execute(() -> {
-            for (int i = 0; i < 10000; i++) {
-                System.out.println(scriptEngine.eval("abc()"));
+    public void test1(){
+        setRule("name", "rule");
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", 123);
+        map.put("arr", Arrays.asList(1,2,3,4,5,6,6,6,6,7));
+        System.out.println(call("name", map));
+    }
+
+    public Object test(int len, Object obj){
+        Integer integer = Integer.valueOf(obj.toString());
+        for (int i = 0; i < len; i++) {
+            if(integer.equals(i)){
+                return String.valueOf(i);
             }
-        });
-        ScriptUtils.execute(() -> {
-            for (int i = 0; i < 10000; i++) {
-                System.out.println(scriptEngine.eval("abc()"));
-            }
-        });
-        for (int i = 0; i < 10000; i++) {
-            System.out.println(scriptEngine.eval("abc()"));
+        }
+        return -1;
+    }
+
+    public Object call(String funName, Object ... args){
+        ScriptObjectMirror fun = ruleMap.get(funName);
+        if(fun == null){
+            throw new RuntimeException("不存在");
+        }
+        return fun.call(common, args);
+    }
+
+    public void setRule(String funName, ScriptObjectMirror fun){
+        if(fun.isFunction()){
+            ruleMap.put(funName, fun);
         }
     }
 
-    // 读入文件
-    @Test
-    public void test2() throws ScriptException {
-        scriptEngine.eval("test.clearObj({a:1,b:2})");
-    }
-
-    // 测试js时间
-    @Test
-    public void test3() throws ScriptException{
-        ScriptUtils.timerStart();
-        scriptEngine.eval(new StringBuilder()
-                .append("var count = 0;")
-                .append("for(var i = 0; i <= 10000*10000; i++){")
-                .append("   count /= 2;")
-                .append("   count += i * i;")
-                .append("}")
-                .append("print(count)")
-                .toString());
-        ScriptUtils.timerEnd();
-    }
-
-    // 测试java时间
-    @Test
-    public void test4() throws ScriptException{
-        ScriptUtils.timerStart();
-        long count = 0;
-        for(long i = 0; i <= 10000*10000; i++){
-            count /= 2;
-            count += i * i;
+    public void setRule(String funName, String fileName){
+        ScriptObjectMirror fun = readJs(fileName);
+        if(fun.isFunction()){
+            ruleMap.put(funName, fun);
         }
-        System.out.println(count);
-        ScriptUtils.timerEnd();
     }
 
-    //和java交互
-    @Test
-    public void test5() throws ScriptException {
-        Map map = new HashMap();
-        map.put("a", "123");
-        map.put("b", "123");
-        map.put("c", new BigDecimal("12312312312321313131312313123123123123"));
-        scriptEngine.put("a", map);
-        scriptEngine.eval("test.params(a.a,a.b,a.c)");
+    public Object eval(String text){
+        try {
+            return engine.eval("(".concat(text).concat(")"));
+        } catch (ScriptException e) {
+            return null;
+        }
     }
 
-    //长整数
-    @Test
-    public void test6() throws ScriptException {
-        Object eval = scriptEngine.eval("var a = test.bigNumber();");
-        System.out.println(scriptEngine.get("a"));
-        System.out.println(new BigDecimal(scriptEngine.get("a").toString()));
+    public ScriptObjectMirror getJs(String funJs){
+        try {
+            Object eval = engine.eval("(".concat(funJs).concat(")"));
+            if(eval instanceof ScriptObjectMirror){
+                return (ScriptObjectMirror) eval;
+            }
+        } catch (ScriptException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
-    //测试语法
-    @Test
-    public void test7() throws ScriptException {
-        Object eval = scriptEngine.eval("var a = {}; a[123]=342342; a['123123']=123123; var b = {}; a[b] = 423432;print(a[b])");
+    public ScriptObjectMirror readJs(String name){
+        String js = ScriptUtils.readResource(JS_PATH.concat(name).concat(".js"));
+        try {
+            Object eval = engine.eval("(".concat(js).concat(")"));
+            if(eval instanceof ScriptObjectMirror){
+                return (ScriptObjectMirror) eval;
+            }
+        } catch (ScriptException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
-    // =================================================================================================================
 
-    public void setAttr(String name, String filename) throws ScriptException {
-        String str = ScriptUtils.readStrTrim(SRC_PATH, filename);
-        scriptEngine.getContext().setAttribute(name, scriptEngine.eval(str), ScriptContext.ENGINE_SCOPE);
+    public static void jsCall(){
+        System.out.println("js 调用 java");
     }
 
 }

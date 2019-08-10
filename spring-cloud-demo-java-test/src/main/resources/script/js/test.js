@@ -1,3 +1,4 @@
+/** JavaScriptTest */
 (function(){
     return {
         abc : function(){

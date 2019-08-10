@@ -6,6 +6,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
@@ -27,9 +28,25 @@ public class ScriptUtils {
     }
 
     public static String readStr(File file){
+        try {
+            return readStr(new FileInputStream(file));
+        }catch (Exception e){
+            return "";
+        }
+    }
+
+    public static String readResource(String name){
+        return readStr(ClassLoader.getSystemResourceAsStream(name));
+    }
+
+    private static String readStr(InputStream is){
+        return readStr(is, "UTF-8");
+    }
+
+    private static String readStr(InputStream is, String enCode){
         BufferedReader br = null;
         try {
-            br = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+            br = new BufferedReader(new InputStreamReader(is, enCode));
             String str = null;
             StringBuilder sb = new StringBuilder();
             while((str = br.readLine()) != null){
