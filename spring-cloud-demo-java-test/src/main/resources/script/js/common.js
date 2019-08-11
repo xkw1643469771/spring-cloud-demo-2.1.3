@@ -24,5 +24,6 @@
                 return true;
             }
         }
-    }
+    },
+    demo : com.xumou.demo.test.script.js.JavaScriptDemo,
 })

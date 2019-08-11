@@ -12,14 +12,18 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class JavaScriptDemo {
 
     public static final String JS_PATH = "script/js/";
+    public static ScriptObjectMirror common;
+    public static ExecutorService es;
+
     ScriptEngineManager manager;
     ScriptEngine engine;
     Map<String, ScriptObjectMirror> ruleMap;
-    ScriptObjectMirror common;
 
     @Before
     public void before(){
@@ -27,6 +31,7 @@ public class JavaScriptDemo {
         engine = manager.getEngineByName("js");
         ruleMap = new ConcurrentHashMap<>();
         common = readJs("common");
+        es = Executors.newFixedThreadPool(10);
     }
 
     @Test
@@ -36,6 +41,7 @@ public class JavaScriptDemo {
         map.put("name", 123);
         map.put("arr", Arrays.asList(1,2,3,4,5,6,6,6,6,7));
         System.out.println(call("name", map));
+        ScriptUtils.sleep(1000);
     }
 
     public Object test(int len, Object obj){
@@ -103,7 +109,6 @@ public class JavaScriptDemo {
     }
 
     public static Object jsCall(){
-        System.out.println("js 调用 java");
         Map<String, Object> map = new HashMap<>();
         map.put("name", "Tom");
         map.put("age", 34);
@@ -112,5 +117,20 @@ public class JavaScriptDemo {
         return map;
     }
 
+    public static void jsCall(Object obj){
+        if(obj instanceof ScriptObjectMirror){
+            ScriptObjectMirror sObj = (ScriptObjectMirror) obj;
+            if(sObj.isFunction()){
+                es.execute(() -> {
+                    ScriptUtils.sleep(100);
+                    sObj.call(common, "SUCCESS");
+                });
+            }
+        }
+    }
+
+    public static void debug(Object obj){
+        System.out.println(obj);
+    }
 }
 
