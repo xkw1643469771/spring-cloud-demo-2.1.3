@@ -35,13 +35,14 @@ public class JavaScriptDemo {
         manager = new ScriptEngineManager();
         engine = manager.getEngineByName("js");
         ruleMap = new ConcurrentHashMap<>();
-        common = readJs("common");
+        common = (ScriptObjectMirror) readJs("common").call(null);
+        common.freeze();
         initRules();
         es = Executors.newFixedThreadPool(10);
     }
 
     public void initRules() {
-        ScriptObjectMirror obj = readJs("rules");
+        ScriptObjectMirror obj = readWarp("rules");
         Set<Map.Entry<String, Object>> entries = obj.entrySet();
         for (Map.Entry<String, Object> entry : entries) {
             if(entry.getValue() instanceof ScriptObjectMirror){
@@ -96,6 +97,14 @@ public class JavaScriptDemo {
         }
     }
 
+    public ScriptObjectMirror readWarp(String name){
+        ScriptObjectMirror mirror = readJs(name);
+        if(mirror.isFunction()){
+            return (ScriptObjectMirror) mirror.call(null, common);
+        }
+        return null;
+    }
+
     public ScriptObjectMirror readJs(String name){
         String js = ScriptUtils.readResource(JS_PATH.concat(name).concat(".js"));
         return getJs(js);
@@ -142,6 +151,13 @@ public class JavaScriptDemo {
 
     public static void debug(Object obj){
         System.out.println(obj);
+    }
+
+    public static Object call(ScriptObjectMirror fun, Object ... args){
+        if(fun.isFunction())
+            return fun.call(common, args);
+        else
+            throw new RuntimeException("不是方法");
     }
 }
 
