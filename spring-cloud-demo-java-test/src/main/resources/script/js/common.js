@@ -1,9 +1,9 @@
 /** JavaScriptDemo 公共方法 */
 (function(){
-    var demo = com.xumou.demo.test.script.js.JavaScriptDemo;
+    var Demo = com.xumou.demo.test.script.js.JavaScriptDemo;
     var Collection = java.util.Collection;
     return {
-        demo : demo,
+        demo : Demo,
         isArr : function(obj){
             if(!obj){
                 return false;
@@ -23,7 +23,7 @@
                     if(!(typeof(callback) === "function"))
                         return false;
                     for (var i = 0; i < arr.length; i++)
-                        if(demo.call(callback, arr[i], i) === false)
+                        if(Demo.call(callback, arr[i], i) === false)
                             return false;
                     return true;
                 }
@@ -35,7 +35,7 @@
                     if(!(typeof(callback) === "function"))
                         return false;
                     for (var name in obj)
-                        if (callback.call(demo.common, obj[name], name) === false)
+                        if (callback.call(Demo.common, obj[name], name) === false)
                             return false;
                     return true;
                 }
