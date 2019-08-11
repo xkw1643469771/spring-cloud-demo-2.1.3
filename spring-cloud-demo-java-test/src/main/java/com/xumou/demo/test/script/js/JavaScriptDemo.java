@@ -1,5 +1,6 @@
 package com.xumou.demo.test.script.js;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.xumou.demo.test.utils.ScriptUtils;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.junit.Before;
@@ -10,7 +11,10 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,6 +22,7 @@ import java.util.concurrent.Executors;
 public class JavaScriptDemo {
 
     public static final String JS_PATH = "script/js/";
+    public static final ObjectMapper OM = new ObjectMapper();
     public static ScriptObjectMirror common;
     public static ExecutorService es;
 
@@ -31,28 +36,44 @@ public class JavaScriptDemo {
         engine = manager.getEngineByName("js");
         ruleMap = new ConcurrentHashMap<>();
         common = readJs("common");
+        initRules();
         es = Executors.newFixedThreadPool(10);
     }
 
+    public void initRules() {
+        ScriptObjectMirror obj = readJs("rules");
+        Set<Map.Entry<String, Object>> entries = obj.entrySet();
+        for (Map.Entry<String, Object> entry : entries) {
+            if(entry.getValue() instanceof ScriptObjectMirror){
+                ScriptObjectMirror temp = (ScriptObjectMirror) entry.getValue();
+                if(temp.isFunction()){
+                    ruleMap.put(entry.getKey(), temp);
+                }
+            }
+        }
+    }
+
+    // 开始测试 =========================================================================================================
+
     @Test
     public void test1(){
-        setRule("name", "rule");
         Map<String, Object> map = new HashMap<>();
         map.put("name", 123);
         map.put("arr", Arrays.asList(1,2,3));
-        System.out.println(call("name", map));
+        System.out.println(call("test1", map));
         ScriptUtils.sleep(1000);
     }
 
-    public Object test(int len, Object obj){
-        Integer integer = Integer.valueOf(obj.toString());
-        for (int i = 0; i < len; i++) {
-            if(integer.equals(i)){
-                return String.valueOf(i);
-            }
+    @Test
+    public void test2() throws Exception{
+        List<String> list = new LinkedList<>();
+        for (int i = 0; i < 4; i++) {
+            list.add(String.valueOf(Math.random()));
         }
-        return -1;
+        System.out.println(call("test2", list));
     }
+
+    // 通用封装 =========================================================================================================
 
     public Object call(String funName, Object ... args){
         ScriptObjectMirror fun = ruleMap.get(funName);
@@ -75,6 +96,19 @@ public class JavaScriptDemo {
         }
     }
 
+    public ScriptObjectMirror readJs(String name){
+        String js = ScriptUtils.readResource(JS_PATH.concat(name).concat(".js"));
+        return getJs(js);
+    }
+
+    public ScriptObjectMirror getJs(String funJs){
+        Object eval = eval(funJs);
+        if(eval instanceof ScriptObjectMirror){
+            return (ScriptObjectMirror) eval;
+        }
+        return null;
+    }
+
     public Object eval(String text){
         try {
             return engine.eval("(".concat(text).concat(")"));
@@ -83,30 +117,7 @@ public class JavaScriptDemo {
         }
     }
 
-    public ScriptObjectMirror getJs(String funJs){
-        try {
-            Object eval = engine.eval("(".concat(funJs).concat(")"));
-            if(eval instanceof ScriptObjectMirror){
-                return (ScriptObjectMirror) eval;
-            }
-        } catch (ScriptException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public ScriptObjectMirror readJs(String name){
-        String js = ScriptUtils.readResource(JS_PATH.concat(name).concat(".js"));
-        try {
-            Object eval = engine.eval("(".concat(js).concat(")"));
-            if(eval instanceof ScriptObjectMirror){
-                return (ScriptObjectMirror) eval;
-            }
-        } catch (ScriptException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
+    // js 中调用 ========================================================================================================
 
     public static Object jsCall(){
         Map<String, Object> map = new HashMap<>();

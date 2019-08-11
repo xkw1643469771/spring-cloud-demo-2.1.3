@@ -1,4 +1,4 @@
-/** JavaScriptDemo */
+/** JavaScriptDemo 公共方法 */
 ({
     isArr : function(obj){
         if(!obj){
@@ -16,11 +16,23 @@
         }
         return {
             forEach : function(callback){
-                for (var i = 0; i < arr.length; i++) {
-                    if(callback(arr[i], i) === false){
+                if(!(typeof(callback) === "function"))
+                    return false;
+                for (var i = 0; i < arr.length; i++)
+                    if(callback(arr[i], i) === false)
                         return false;
-                    }
-                }
+                return true;
+            }
+        }
+    },
+    toObj : function(obj){
+        return {
+            forEach : function(callback) {
+                if(!(typeof(callback) === "function"))
+                    return false;
+                for (var name in obj)
+                    if (callback(obj[name], name) === false)
+                        return false;
                 return true;
             }
         }
