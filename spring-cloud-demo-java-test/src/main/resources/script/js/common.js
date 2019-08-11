@@ -12,7 +12,7 @@
     },
     toArr : function(arr){
         if(!this.isArr(arr)){
-            arr = [];
+            arr = [arr];
         }
         return {
             forEach : function(callback){

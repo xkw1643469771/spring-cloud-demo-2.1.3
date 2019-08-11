@@ -39,7 +39,7 @@ public class JavaScriptDemo {
         setRule("name", "rule");
         Map<String, Object> map = new HashMap<>();
         map.put("name", 123);
-        map.put("arr", Arrays.asList(1,2,3,4,5,6,6,6,6,7));
+        map.put("arr", Arrays.asList(1,2,3));
         System.out.println(call("name", map));
         ScriptUtils.sleep(1000);
     }
