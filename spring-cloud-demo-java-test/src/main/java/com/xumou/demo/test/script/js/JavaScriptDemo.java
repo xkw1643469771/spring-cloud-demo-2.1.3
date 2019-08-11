@@ -102,8 +102,14 @@ public class JavaScriptDemo {
         return null;
     }
 
-    public static void jsCall(){
+    public static Object jsCall(){
         System.out.println("js 调用 java");
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", "Tom");
+        map.put("age", 34);
+        map.put("sex", "男");
+        map.put("arr", Arrays.asList(1,2,3,4,5,6));
+        return map;
     }
 
 }
