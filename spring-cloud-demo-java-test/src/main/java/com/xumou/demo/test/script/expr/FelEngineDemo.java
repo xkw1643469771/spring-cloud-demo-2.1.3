@@ -8,6 +8,8 @@ import com.xumou.demo.test.utils.ScriptUtils;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.junit.Test;
 
+import javax.script.Bindings;
+import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -105,6 +107,34 @@ public class FelEngineDemo {
         System.out.println(eval);
     }
 
-    public void test5(){
+    // Fel 效率对比3 还是预编译
+    @Test
+    public void test5() throws ScriptException {
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
+        String funStr = "(function(){return obj;})";
+        ScriptObjectMirror func = (ScriptObjectMirror) engine.eval(funStr.replace("obj",
+                "a*b"));
+
+        FelEngine felEngine = new FelEngineImpl();
+        FelContext context = felEngine.getContext();
+        context.set("a", 1.0);
+        context.set("b", 1.0);
+        Expression compile = felEngine.compile("a*b", context);
+
+        Object eval = null;
+        ScriptUtils.timerStart();
+        for (int i = 0; i < 10000*1000; i++) {
+            // 用时： 2543 毫秒： 提前编译，速度快，灵活,无类型问题
+//            engine.put("a", i);
+//            engine.put("b", i);
+//            eval = func.call(null);
+
+            // 用时：  240 毫秒： 提前编译，速度快，灵活，但需要考虑类型问题
+            context.set("a", (double) i);
+            context.set("b", (double) i);
+            eval = compile.eval(context);
+        }
+        ScriptUtils.timerEnd();
+        System.out.println(eval);
     }
 }
