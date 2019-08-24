@@ -14,6 +14,9 @@ import javax.script.ScriptException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 计算引擎， 可以用来计算搭配公式计算费用
+ */
 public class FelEngineDemo {
 
     // Fel 初步使用
@@ -29,7 +32,7 @@ public class FelEngineDemo {
 
     // Fel 效率对比1： 每次新建引擎
     @Test
-    public void tes2() throws ScriptException {
+    public void test2() throws ScriptException {
         ScriptUtils.timerStart();
         for (int i = 0; i < 100; i++) {
             // 922 毫秒
@@ -50,7 +53,7 @@ public class FelEngineDemo {
 
     // Fel 效率对比2 ： 预先得到引擎
     @Test
-    public void tes3() throws ScriptException {
+    public void test3() throws ScriptException {
         ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
         FelEngine felEngine = new FelEngineImpl();
         ScriptUtils.timerStart();
@@ -71,7 +74,7 @@ public class FelEngineDemo {
 
     // Fel 效率对比3 预编译
     @Test
-    public void tes4() throws ScriptException {
+    public void test4() throws ScriptException {
         ScriptEngine engine = new ScriptEngineManager().getEngineByName("js");
         ScriptObjectMirror fun = (ScriptObjectMirror) engine.eval(
                 "(function(map){return map.单价*map.数量})");
@@ -102,4 +105,6 @@ public class FelEngineDemo {
         System.out.println(eval);
     }
 
+    public void test5(){
+    }
 }
