@@ -4,12 +4,11 @@ import com.greenpineyu.fel.Expression;
 import com.greenpineyu.fel.FelEngine;
 import com.greenpineyu.fel.FelEngineImpl;
 import com.greenpineyu.fel.context.FelContext;
+import com.greenpineyu.fel.context.MapContext;
 import com.xumou.demo.test.utils.ScriptUtils;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import org.junit.Test;
 
-import javax.script.Bindings;
-import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
@@ -124,17 +123,42 @@ public class FelEngineDemo {
         Object eval = null;
         ScriptUtils.timerStart();
         for (int i = 0; i < 10000*1000; i++) {
-            // 用时： 2543 毫秒： 提前编译，速度快，灵活,无类型问题
-//            engine.put("a", i);
-//            engine.put("b", i);
-//            eval = func.call(null);
+            // 用时： 2543 毫秒： 提前编译，速度快，灵活,无类型问题, js有精度问题
+            engine.put("a", i);
+            engine.put("b", i);
+            eval = func.call(null);
 
             // 用时：  240 毫秒： 提前编译，速度快，灵活，但需要考虑类型问题
-            context.set("a", (double) i);
-            context.set("b", (double) i);
-            eval = compile.eval(context);
+//            context.set("a", (double) i);
+//            context.set("b", (double) i);
+//            eval = compile.eval(context);
         }
         ScriptUtils.timerEnd();
         System.out.println(eval);
+    }
+
+    // FelEngine 批量计算，预编译
+    @Test
+    public void test7(){
+        FelContext c1 = new MapContext();
+        c1.set("单价", 1);
+        c1.set("数量", 1);
+        Expression e1 = FelEngine.instance.compile("单价*数量", c1);
+
+        FelContext c2 = new MapContext();
+        c2.set("单价", 1.0);
+        c2.set("数量", 1.0);
+        Expression e2 = FelEngine.instance.compile("单价*数量", c2);
+
+        c1.set("单价", 2);
+        c1.set("数量", 3);
+        e1.eval(c1);
+        System.out.println(e1.eval(c1));
+
+        c2.set("单价", 4*1.0);
+        c2.set("数量", 5*1.0);
+        System.out.println(e2.eval(c2));
+
+        System.out.println(e1.eval(c1));
     }
 }
