@@ -1,4 +1,4 @@
-package com.xumou.demo.test.scan;
+package com.xumou.demo.test.spring.scan;
 
 import org.junit.Test;
 import org.springframework.core.io.Resource;

@@ -1,6 +1,6 @@
 package com.xumou.demo.test;
 
-import com.xumou.demo.test.scan.ScannerClassTest;
+import com.xumou.demo.test.spring.scan.ScannerClassTest;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
