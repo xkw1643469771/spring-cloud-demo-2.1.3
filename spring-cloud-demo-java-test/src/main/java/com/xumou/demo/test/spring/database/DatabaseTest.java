@@ -96,7 +96,8 @@ public class DatabaseTest {
     @Test
     public void generatorStr(){
         SqlUtils.setGeneratorDatabse("org.h2.Driver",
-                "jdbc:h2:tcp://192.168.88.201:8082/~/test", "root", "root");
+                "jdbc:h2:tcp://192.168.88.201:8082/~/test",
+                "root", "root");
         String str = SqlUtils.generatorStr("TBL_USER");
         System.out.println(str);
     }
