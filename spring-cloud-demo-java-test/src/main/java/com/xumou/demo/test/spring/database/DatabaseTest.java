@@ -14,8 +14,8 @@ public class DatabaseTest {
             TestObj test = new TestObj();
             test.setName("Tom");
             test.setNameStr("123123");
-            SqlUtils.SqlObj sqlObj = SqlUtils.insertSql(test, "test", SqlUtils.IGNORE_NULL, SqlUtils.UPPER_TO_LINE, SqlUtils.IGNORE("nameStr"));
-            jdbcTemplate.update(sqlObj.getSql(), sqlObj.getArgs());
+            SqlUtils.insertSql(test, "test", SqlUtils.IGNORE_NULL, SqlUtils.UPPER_TO_LINE, SqlUtils.IGNORE("nameStr"))
+                    .update(jdbcTemplate);
             List<Map<String, Object>> maps = jdbcTemplate.queryForList("select * from test");
             System.out.println(maps);
             throw new Exception();
@@ -80,6 +80,14 @@ public class DatabaseTest {
                     }
                 }), SqlUtils.UPPER_TO_LINE);
         System.out.println(test1);
+    }
+
+    @Test
+    public void updateByIdSql(){
+        TestObj test = new TestObj();
+        test.setName("Tom");
+        test.setNameStr("123123");
+        SqlUtils.updateByColSql(test, "id", SqlUtils.IGNORE("id")).update(null);
     }
 
 }
