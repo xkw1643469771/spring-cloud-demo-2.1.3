@@ -16,11 +16,11 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -29,13 +29,6 @@ import java.util.StringTokenizer;
 
 public class SqlUtils {
 
-    /** 将大写转为下划线加小写 */
-    public static final ColumnCall UPPER_TO_LINE = column -> {
-        if(column.getFiled().getAnnotation(Alias.class) == null){
-            column.setColumnName(toColumnName(column.getColumnName()));
-        }
-    };
-
     /** 忽略为空的属性 */
     public static final ColumnCall IGNORE_NULL = column -> {
         if (column.getFieldValue() == null){
@@ -43,62 +36,40 @@ public class SqlUtils {
         }
     };
 
-    /** 忽略指定属性 */
-    public static final ColumnCall IGNORE(String ... name){
+    /** 忽略指定字段 */
+    public static final ColumnCall IGNORE(String fieldNames){
+        isTree(!empty(fieldNames), "fieldNames not is null");
+        Set<String> set = strToSet(fieldNames, ",");
         return column -> {
-            for (String str : name) {
-                if(column.fieldName.equals(str)){
-                    column.setIgnore(true);
-                }
-            }
-        };
-    }
-
-    /** 通过指定字段批量执行更新 */
-    public static BatchSqlObj batchUpdateByColSql(List list, String filedNames, ColumnCall... columnMappers){
-        return batchUpdateByColSql(list, tableName(list.get(0)), filedNames, columnMappers);
-    }
-
-    /** 通过指定字段批量执行更新,自己指定表名 */
-    public static BatchSqlObj batchUpdateByColSql(List list, String tableName, String filedNames,
-                                                  ColumnCall... columnMappers){
-        return batchExecuteSql(list, tableName, fields -> {
-            return updateByColSql(list.get(0), tableName, filedNames, joinCol(columnMappers, call(column -> {
-                fields.add(column.getFiled());
-            })));
-        }, columnMappers);
-    }
-
-    /** 通过指定字段更新 */
-    public static SqlObj updateByColSql(Object obj, String filedNames, ColumnCall ... columnCalls){
-        return updateByColSql(obj, tableName(obj), filedNames, columnCalls);
-    }
-
-    /** 通过指定字段更新, 自己指定表名 */
-    public static SqlObj updateByColSql(Object obj, String tableName, String filedNames, ColumnCall ... columnCalls){
-        isTree(!empty(filedNames), "cols not is null");
-        Set set = strToCollection(new HashSet(), filedNames, ",");
-        return updateWhereSql(obj, tableName, call(columnCalls), call(column -> {
             if(set.contains(column.getFieldName())){
                 column.setIgnore(false);
             }else{
                 column.setIgnore(true);
             }
-        }), UPPER_TO_LINE);
+        };
+    }
+
+    /** 通过指定字段批量更新 */
+    public static BatchSqlObj batchUpdateByColSql(List list, String fieldNames, ColumnCall... columnCalls){
+        return batchExecuteSql(list, fields -> {
+            ColumnCall call = column -> {
+                if(column.ignore) return;
+                fields.add(column.getFiled());
+            };
+            return updateWhereSql(list.get(0), joins(columnCalls, join(call)), join(IGNORE(fieldNames), call));
+        });
+    }
+
+    /** 通过指定字段更新 */
+    public static SqlObj updateByColSql(Object obj, String fieldNames, ColumnCall ... columnCalls){
+        return updateWhereSql(obj, columnCalls, join(IGNORE(fieldNames)));
     }
 
     /** 通过条件更新 */
-    public static SqlObj updateWhereSql(Object obj, ColumnCall[] columnCalls,
-                                        ColumnCall[] whereCalls, ColumnCall ... commonCall){
-        return updateWhereSql(obj, tableName(obj), columnCalls, whereCalls, commonCall);
-    }
-
-    /** 通过条件更新, 自己指定表名 */
-    public static SqlObj updateWhereSql(Object obj, String tableName, ColumnCall[] columnCalls,
-                                        ColumnCall[] whereCalls, ColumnCall ... commonCall){
-        SqlObj update = updateSql(obj, tableName, joinCol(commonCall, columnCalls));
-        SqlObj where = whereSql(obj, joinCol(commonCall, whereCalls));
-        String sql = update.getSql() + (empty(where.getSql()) ? "" : "where (" + where.getSql() + ")");
+    public static SqlObj updateWhereSql(Object obj, ColumnCall[] columnCalls, ColumnCall[] whereCalls, ColumnCall ... commonCall){
+        SqlObj update = updateSql(obj, joins(commonCall, columnCalls));
+        SqlObj where = whereSql(obj, joins(commonCall, whereCalls));
+        String sql = update.getSql() + "where " + where.getSql();
         return sqlObj(sql, arrsToList(update.getArgs(), where.getArgs()));
     }
 
@@ -107,34 +78,14 @@ public class SqlUtils {
         return updateSql(obj, tableName(obj), columnCalls);
     }
 
-    /** 更新一条， 自己指定表名 */
-    public static SqlObj updateSql(Object obj, String table, ColumnCall... columnCalls){
-        StringBuilder sb = new StringBuilder();
-        List<Object> args = new LinkedList<>();
-        sb.append("update ").append(table).append(" set ");
-        sql(obj, joinCol(columnCalls, call(column -> {
-            if(column.ignore) return;
-            sb.append(column.getColumnName()).append("=").append("?, ");
-            args.add(column.getFieldValue());
-        })));
-        delEnd(sb, ", ");
-        endBlank(sb);
-        return sqlObj(sb.toString(), args);
-    }
-
     /** 批量插入 */
     public static BatchSqlObj batchInsertSql(List list, ColumnCall ... columnMappers){
-        isTree(list != null && !list.isEmpty(), "list not is null");
-        return batchInsertSql(list, tableName(list.get(0)), columnMappers);
-    }
-
-    /** 批量插入，自己指定表名 */
-    public static BatchSqlObj batchInsertSql(List list, String table, ColumnCall ... columnMappers){
-        return batchExecuteSql(list, table, fields -> {
-            return insertSql(list.get(0), table, joinCol(columnMappers, call(column -> {
+        return batchExecuteSql(list, fields -> {
+            return insertSql(list.get(0), joins(columnMappers, join(column -> {
+                if(column.ignore) return;
                 fields.add(column.getFiled());
             })));
-        }, columnMappers);
+        });
     }
 
     /** 插入一条 */
@@ -142,12 +93,39 @@ public class SqlUtils {
         return insertSql(obj, tableName(obj), columnMappers);
     }
 
+    /** 根据指定字段删除 */
+    public static SqlObj deleteByColSql(Object obj, String filedNames, ColumnCall ... whereCalls){
+        return deleteWhereSql(obj, joins(join(IGNORE(filedNames)), whereCalls));
+    }
+
+    /** 根据条件删除 */
+    public static SqlObj deleteWhereSql(Object obj, ColumnCall ... whereCalls){
+        return deleteWhereSql(obj, tableName(obj), whereCalls);
+    }
+
+    private static BatchSqlObj batchExecuteSql(List list, BatchCall call){
+        isTree(list != null && !list.isEmpty(), "list not is null");
+        List<Field> fields = new LinkedList<>();
+        SqlObj sqlObj = call.call(fields);
+        List<Object[]> batchArgs = new LinkedList<>();
+        batchArgs.add(sqlObj.getArgs());
+        for (int i = 1; i < list.size(); i++) {
+            Object obj = list.get(i);
+            List<Object> args = new LinkedList<>();
+            for (Field field : fields) {
+                args.add(fieldValue(field, obj));
+            }
+            batchArgs.add(args.toArray());
+        }
+        return batchSqlObj(sqlObj.getSql(), batchArgs);
+    }
+
     /** 插入一条, 自己指定表名 */
     public static SqlObj insertSql(Object obj, String tableName, ColumnCall... columnMappers){
         StringBuilder sb = new StringBuilder();
         List<Object> args = new LinkedList<>();
         sb.append("insert into ").append(tableName).append(" (");
-        sql(obj, joinCol(columnMappers, call(column -> {
+        sql(obj, joins(columnMappers, join(column -> {
             if(column.ignore) return;
             sb.append(column.getColumnName()).append(", ");
             args.add(column.getFieldValue());
@@ -162,11 +140,33 @@ public class SqlUtils {
         return sqlObj(sb.toString(), args);
     }
 
-    /** 条件拼接 */
-    public static SqlObj whereSql(Object obj, ColumnCall ... columnMappers){
+    /** 更新一条， 自己指定表名 */
+    public static SqlObj updateSql(Object obj, String tableName, ColumnCall... columnCalls){
         StringBuilder sb = new StringBuilder();
         List<Object> args = new LinkedList<>();
-        sql(obj, joinCol(columnMappers, call(column -> {
+        sb.append("update ").append(tableName).append(" set ");
+        sql(obj, joins(columnCalls, join(column -> {
+            if(column.ignore) return;
+            sb.append(column.getColumnName()).append("=").append("?, ");
+            args.add(column.getFieldValue());
+        })));
+        delEnd(sb, ", ");
+        endBlank(sb);
+        return sqlObj(sb.toString(), args);
+    }
+
+    /** 根据条件删除 */
+    public static SqlObj deleteWhereSql(Object obj, String tableName, ColumnCall ... whereCalls){
+        SqlObj sqlObj = whereSql(obj, whereCalls);
+        sqlObj.setSql("delete from " + tableName + " where " + sqlObj.sql);
+        return sqlObj;
+    }
+
+    /** 条件拼接 */
+    public static SqlObj whereSql(Object obj, ColumnCall ... columnCalls){
+        StringBuilder sb = new StringBuilder();
+        List<Object> args = new LinkedList<>();
+        sql(obj, joins(columnCalls, join(column -> {
             if(column.ignore) return;
             if(column.getAndSql() == null){
                 sb.append("and ").append(column.getColumnName()).append("=").append("? ");
@@ -187,45 +187,22 @@ public class SqlUtils {
         return sqlObj(sql, args);
     }
 
-    public static BatchSqlObj batchExecuteSql(List list, String table, BatchCall call, ColumnCall... columnMappers){
-        isTree(list != null && !list.isEmpty(), "list not is null");
-        List<Field> fields = new LinkedList<>();
-        SqlObj sqlObj = call.call(fields);
-        List<Object[]> batchArgs = new LinkedList<>();
-        batchArgs.add(sqlObj.getArgs());
-        for (int i = 1; i < list.size(); i++) {
-            Object obj = list.get(i);
-            List<Object> args = new LinkedList<>();
-            for (Field field : fields) {
-                try {
-                    args.add(field.get(obj));
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-            batchArgs.add(args.toArray());
-        }
-        return batchSqlObj(sqlObj.getSql(), batchArgs);
-    }
-
-    public static void sql(Object obj, ColumnCall... columnMappers){
+    private static void sql(Object obj, ColumnCall... columnMappers){
         isTree(obj != null, "obj not null");
         Field[] fields = obj.getClass().getDeclaredFields();
         for (Field field : fields) {
-            try {
-                field.setAccessible(true);
-                Column column = new Column(field, field.getName());
-                column.setFieldValue(field.get(obj));
-                Alias alias = field.getAnnotation(Alias.class);
-                column.setColumnName(alias == null ? field.getName() : alias.value());
-                for (ColumnCall columnMapper : columnMappers) {
-                    columnMapper.call(column);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            field.setAccessible(true);
+            Column column = new Column(field, field.getName());
+            column.setFieldValue(fieldValue(field, obj));
+            Alias alias = field.getAnnotation(Alias.class);
+            column.setColumnName(alias == null ? toColumnName(field.getName()) : alias.value());
+            for (ColumnCall columnMapper : columnMappers) {
+                columnMapper.call(column);
             }
         }
     }
+
+    // =================================================================================================================
 
     public static String tableName(Object obj) {
         isTree(obj != null, "obj not is null");
@@ -253,6 +230,14 @@ public class SqlUtils {
         return sb.toString();
     }
 
+    public static Object fieldValue(Field field, Object obj){
+        try{
+            return field.get(obj);
+        }catch (Exception e){
+            return null;
+        }
+    }
+
     public static List arrsToList(Object[] ... obj){
         List list = new LinkedList();
         for (Object[] objects : obj) {
@@ -263,15 +248,16 @@ public class SqlUtils {
         return list;
     }
 
-    public static <T extends Collection> T strToCollection(T t, String str, String delim){
+    public static Set strToSet(String str, String delim){
+        Set set = new LinkedHashSet();
         StringTokenizer tokenizer = new StringTokenizer(str, delim);
         while(tokenizer.hasMoreElements()){
-            t.add(tokenizer.nextElement());
+            set.add(tokenizer.nextElement());
         }
-        return t;
+        return set;
     }
 
-    public static ColumnCall[] joinCol(ColumnCall[] ... columnCalls){
+    public static ColumnCall[] joins(ColumnCall[] ... columnCalls){
         List<ColumnCall> list = new LinkedList<>();
         for (ColumnCall[] cs : columnCalls) {
             for (ColumnCall c : cs) {
@@ -281,7 +267,7 @@ public class SqlUtils {
         return list.toArray(new ColumnCall[]{});
     }
 
-    public static ColumnCall[] call(ColumnCall ... calls){
+    public static ColumnCall[] join(ColumnCall ... calls){
         return calls;
     }
 

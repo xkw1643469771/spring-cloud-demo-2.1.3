@@ -3,89 +3,89 @@ package com.xumou.demo.test.spring.database;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Date;
 
 public class DatabaseTest {
 
+    public void batchSqlObj(SqlUtils.BatchSqlObj batchSqlObj){
+        System.out.println();
+        System.out.println(batchSqlObj.getSql());
+        batchSqlObj.getBatchArgs().forEach(e-> System.out.println(Arrays.toString(e)));
+        System.out.println();
+    }
+
     @Test
-    public void jdbcTest(){
+    public void batchInsert(){
         JdbcUtils.transction(jdbcTemplate -> {
-            TblTest tblTest = new TblTest();
-            tblTest.setColumnTow("123123");
+            TblTest t1 = new TblTest();
+            t1.setColumn1(123);
+            t1.setColumnTow("123123");
+            TblTest t2 = new TblTest();
+            t2.setColumn3(new Date());
+            SqlUtils.BatchSqlObj batchSqlObj = SqlUtils.batchInsertSql(Arrays.asList(t1, t2),SqlUtils.IGNORE_NULL);
+            batchSqlObj(batchSqlObj);
+            int[] ints = batchSqlObj.batchUpdate(jdbcTemplate);
+            System.out.println(Arrays.toString(ints));
+        });
+    }
 
-            SqlUtils.SqlObj sqlObj = SqlUtils.insertSql(tblTest, "TBL_TEST", SqlUtils.IGNORE_NULL);
+    @Test
+    public void batchUpdate(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblTest t1 = new TblTest();
+            t1.setColumn1(123);
+            t1.setColumnTow("123123");
+            TblTest t2 = new TblTest();
+            t2.setColumn3(new Date());
+            SqlUtils.BatchSqlObj batchSqlObj = SqlUtils.batchUpdateByColSql(Arrays.asList(t1, t2),
+                    "column1", SqlUtils.IGNORE("column1"), SqlUtils.IGNORE_NULL);
+            batchSqlObj(batchSqlObj);
+            int[] ints = batchSqlObj.batchUpdate(jdbcTemplate);
+            System.out.println(Arrays.toString(ints));
+        });
+    }
+
+    @Test
+    public void deleteWhere(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblTest t1 = new TblTest();
+            t1.setColumn1(123);
+            t1.setColumnTow("123123");
+            int count = SqlUtils.deleteWhereSql(t1, SqlUtils.IGNORE_NULL).update(jdbcTemplate);
             System.out.println();
+            System.out.println(count);
+            System.out.println();
+        });
+    }
+
+    @Test
+    public void updateWhere(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblTest t1 = new TblTest();
+            t1.setColumn1(123);
+            t1.setColumnTow("123123");
+            int count = SqlUtils.updateWhereSql(t1, SqlUtils.join(column -> {
+
+            }), SqlUtils.join(column -> {
+
+            }), SqlUtils.IGNORE_NULL).update(jdbcTemplate);
+            System.out.println();
+            System.out.println(count);
+            System.out.println();
+        });
+    }
+
+    @Test
+    public void deleteByCol(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblTest t1 = new TblTest();
+            t1.setColumn1(123);
+            t1.setColumnTow("123123");
+            SqlUtils.SqlObj sqlObj = SqlUtils.deleteByColSql(t1, "column1");
+            int update = sqlObj.update(jdbcTemplate);
+            System.out.println(update);
             System.out.println(sqlObj);
-            System.out.println();
-            sqlObj.update(jdbcTemplate);
         });
-    }
-
-    @Test
-    public void sqlTest(){
-        TestObj test = new TestObj();
-        test.setName("Tom");
-        test.setNameStr("123123");
-        SqlUtils.SqlObj sqlObj = SqlUtils.updateSql(test, "test", column ->  {
-
-        });
-        System.out.println(sqlObj);
-    }
-
-    @Test
-    public void batchSqlTest(){
-        TestObj test = new TestObj();
-        test.setName("Tom");
-        test.setNameStr("123123");
-        SqlUtils.BatchSqlObj sqlObj = SqlUtils.batchUpdateByColSql( Arrays.asList(test,test), "name",
-                SqlUtils.IGNORE_NULL, SqlUtils.UPPER_TO_LINE, SqlUtils.IGNORE("nameStr"));
-        System.out.println(sqlObj);
-    }
-
-    @Test
-    public void whereSqlTest(){
-        TblTest test = new TblTest();
-        test.setColumn1(123);
-        SqlUtils.SqlObj sqlObj = SqlUtils.updateSql( test, SqlUtils.IGNORE_NULL);
-        System.out.println(sqlObj);
-        sqlObj = SqlUtils.whereSql( test, SqlUtils.IGNORE("nameStr"), column -> {
-            if(column.getFieldName().equals("id")){
-                column.setAndSql("and (id > ? and id < ? )");
-                column.setAndSqlArgs(Arrays.asList(1,2).toArray());
-            }
-        }, SqlUtils.IGNORE_NULL);
-        System.out.println(sqlObj);
-    }
-
-    @Test
-    public void updateWhereSqlTest(){
-        TestObj test = new TestObj();
-        test.setName("Tom");
-        test.setNameStr("123123");
-        SqlUtils.SqlObj test1 = SqlUtils.updateWhereSql(test,
-                SqlUtils.call(column -> {
-                    if(column.getFieldName().equals("id")){
-                        column.setIgnore(true);
-                    }else{
-                        column.setIgnore(false);
-                    }
-                }),
-                SqlUtils.call(column -> {
-                    if(!column.getFieldName().equals("id")){
-                        column.setIgnore(true);
-                    }else{
-                        column.setIgnore(false);
-                    }
-                }), SqlUtils.UPPER_TO_LINE);
-        System.out.println(test1);
-    }
-
-    @Test
-    public void updateByIdSql(){
-        TestObj test = new TestObj();
-        test.setName("Tom");
-        test.setNameStr("123123");
-        SqlUtils.SqlObj sqlObj = SqlUtils.updateByColSql(test, "id", SqlUtils.IGNORE("id"));
-        System.out.println(sqlObj);
     }
 
     @Test
