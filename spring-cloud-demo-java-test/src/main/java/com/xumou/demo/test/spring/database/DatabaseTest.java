@@ -2,8 +2,10 @@ package com.xumou.demo.test.spring.database;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 public class DatabaseTest {
 
@@ -17,15 +19,18 @@ public class DatabaseTest {
     @Test
     public void batchInsert(){
         JdbcUtils.transction(jdbcTemplate -> {
-            TblTest t1 = new TblTest();
-            t1.setColumn1(123);
-            t1.setColumnTow("123123");
-            TblTest t2 = new TblTest();
-            t2.setColumn3(new Date());
-            SqlUtils.BatchSqlObj batchSqlObj = SqlUtils.batchInsertSql(Arrays.asList(t1, t2),SqlUtils.IGNORE_NULL);
-            batchSqlObj(batchSqlObj);
-            int[] ints = batchSqlObj.batchUpdate(jdbcTemplate);
-            System.out.println(Arrays.toString(ints));
+            for (int i = 0; i < 100; i++) {
+                List list = new ArrayList();
+                for (int j = 0; j < 10000; j++) {
+                    TblTest tblTest = new TblTest();
+                    tblTest.setColumn1(1);
+                    tblTest.setColumnTow(String.valueOf(Math.random()));
+                    tblTest.setColumn3(new Date());
+                    list.add(tblTest);
+                }
+                int[] ints = SqlUtils.batchInsertSql(list).batchUpdate(jdbcTemplate);
+                System.out.println(ints);
+            }
         });
     }
 
@@ -91,8 +96,8 @@ public class DatabaseTest {
     @Test
     public void generatorStr(){
         SqlUtils.setGeneratorDatabse("org.h2.Driver",
-                "jdbc:h2:tcp://192.168.88.201:8082/~/test", "root", "r");
-        String str = SqlUtils.generatorStr("TBL_TEST");
+                "jdbc:h2:tcp://192.168.88.201:8082/~/test", "root", "root");
+        String str = SqlUtils.generatorStr("TBL_USER");
         System.out.println(str);
     }
 

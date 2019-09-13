@@ -9,7 +9,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -395,12 +394,18 @@ public class SqlUtils {
         static {
             typeMap = new LinkedHashMap<>();
             typeMap.put("INTEGER", Integer.class);
-            typeMap.put("VARCHAR", String.class);
-            typeMap.put("DATE", Date.class);
-            typeMap.put("TIMESTAMP", Date.class);
+            typeMap.put("BIGINT", Long.class);
+
             typeMap.put("BOOLEAN", Boolean.class);
-            typeMap.put("DOUBLE", BigDecimal.class);
-            typeMap.put("BIGINT", BigInteger.class);
+
+            typeMap.put("DOUBLE", Double.class);
+            typeMap.put("DECIMAL", BigDecimal.class);
+
+            typeMap.put("VARCHAR", String.class);
+
+            typeMap.put("DATE", Date.class);
+            typeMap.put("TIME", Date.class);
+            typeMap.put("TIMESTAMP", Date.class);
         }
 
         static void init(){
@@ -538,7 +543,6 @@ public class SqlUtils {
             }
             return map;
         }
-
 
         static void allTable() throws Exception{
             DatabaseMetaData metaData = connection.getMetaData();
