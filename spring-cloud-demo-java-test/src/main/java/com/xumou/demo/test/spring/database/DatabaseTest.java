@@ -90,4 +90,12 @@ public class DatabaseTest {
         SqlUtils.updateByColSql(test, "id", SqlUtils.IGNORE("id")).update(null);
     }
 
+    @Test
+    public void generatorStr(){
+        SqlUtils.setGeneratorDatabse("org.h2.Driver",
+                "jdbc:h2:tcp://192.168.88.201:8082/~/test", "root", "r");
+        String str = SqlUtils.generatorStr("TBL_TEST");
+        System.out.println(str);
+    }
+
 }

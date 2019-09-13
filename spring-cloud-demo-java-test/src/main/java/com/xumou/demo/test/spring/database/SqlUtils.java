@@ -8,10 +8,22 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
@@ -322,5 +334,207 @@ public class SqlUtils {
     @Retention(RetentionPolicy.RUNTIME)
     public static @interface Alias{
         String value();
+    }
+
+    // =================================================================================================================
+
+    public static String generatorStr(String table){
+        return Generator.classString(table);
+    }
+
+    public static void setGeneratorDatabse(String className, String jdbcUrl, String username, String password){
+        Generator.className = className;
+        Generator.jdbcUrl = jdbcUrl;
+        Generator.username = username;
+        Generator.password = password;
+        Generator.init();
+    }
+
+    private static class Generator{
+
+        static final String TABLE_COMMON = "";
+
+        static String className;
+        static String username;
+        static String password;
+        static String jdbcUrl;
+        static Connection connection;
+        static Map<String, Class> typeMap;
+
+        static {
+            typeMap = new LinkedHashMap<>();
+            typeMap.put("INTEGER", Integer.class);
+            typeMap.put("VARCHAR", String.class);
+            typeMap.put("DATE", Date.class);
+            typeMap.put("TIMESTAMP", Date.class);
+            typeMap.put("BOOLEAN", Boolean.class);
+            typeMap.put("DOUBLE", BigDecimal.class);
+            typeMap.put("BIGINT", BigInteger.class);
+        }
+
+        static void init(){
+            try {
+                Class.forName(className);
+                connection = DriverManager.getConnection(jdbcUrl, username, password);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        static String classString(String tableName){
+            Table table = tableCol(tableName);
+            StringBuilder sb = new StringBuilder();
+            Set<Class> set = new HashSet<>();
+            set.add(SqlUtils.class);
+            line(sb, "/**");
+            line(sb, " * ", table.getTableComments());
+            line(sb, " */");
+            line(sb, "@SqlUtils.Alias(\"", table.getTableName(), "\")");
+            line(sb, "public class " ,className(table.getTableName()) ," {");
+            for (Col col : table.getCols()) {
+                line(sb, "\t/** ");
+                line(sb, "\t * ", col.getColComments());
+                line(sb, "\t */");
+                line(sb, "\t@SqlUtils.Alias(\"", col.getColName(), "\")");
+                line(sb, "\tprivate ", filedType(set, col.getColType()) ," " ,fieldName(col.getColName()), ";");
+            }
+            line(sb, "}");
+            StringBuilder im = new StringBuilder();
+            for (Class aClass : set) {
+                line(im, "import ", aClass.getName(), ";");
+            }
+            line(im);
+            return im.append(sb).toString();
+        }
+
+        static String className(String str){
+            char c = str.toUpperCase().charAt(0);
+            return c + fieldName(str.substring(1));
+        }
+
+        static String filedType(Set<Class> set, String str){
+            Class s = typeMap.get(str);
+            if(s == null){
+                return str;
+            }else{
+                if(!s.getName().startsWith("java.lang.")){
+                    set.add(s);
+                }
+                return s.getSimpleName();
+            }
+        }
+
+        static String fieldName(String str){
+            char[] cs = str.toLowerCase().toCharArray();
+            boolean flag = false;
+            StringBuilder sb = new StringBuilder();
+            for (char c : cs) {
+                if(c == '_'){
+                    flag = true;
+                }else if(flag){
+                    if(c >= 'a' && c <= 'z'){
+                        sb.append((char)(c-32));
+                    }else{
+                        sb.append(c);
+                    }
+                    flag = false;
+                }else{
+                    sb.append(c);
+                }
+            }
+            return sb.toString();
+        }
+
+        static void line(StringBuilder sb, Object ... obj){
+            for (Object o : obj) {
+                sb.append(o);
+            }
+            sb.append("\n");
+        }
+
+        static Table tableCol(String tableName){
+            Table table = new Table();
+            try{
+                PreparedStatement ps = connection.prepareStatement("select * from " + tableName + " where 1 = 2 ");
+                ResultSetMetaData metaData = ps.getMetaData();
+                tableName = metaData.getTableName(1);
+                Map<String, String> comments = comments(tableName);
+                table.setTableName(tableName);
+                table.setTableComments(comments.get(TABLE_COMMON));
+                table.setCols(new LinkedList<>());
+                for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                    Col col = new Col();
+                    col.setColName(metaData.getColumnName(i));
+                    col.setColType(metaData.getColumnTypeName(i));
+                    col.setColComments(comments.get(metaData.getColumnName(i)));
+                    table.getCols().add(col);
+                }
+            }catch (Exception e){
+                System.out.println(e.getMessage());
+            }
+            return table;
+        }
+
+        static Map<String,String> comments(String table){
+            if("org.h2.Driver".equals(className)){
+                return query(new StringBuilder()
+                        .append("select COLUMN_NAME, REMARKS from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = ? ")
+                        .append("union ")
+                        .append("select ?, REMARKS from INFORMATION_SCHEMA.TABLES where TABLE_NAME = ?")
+                        .toString(), table, TABLE_COMMON, table
+                );
+            }else if("org.h2.Driver".equals(className)){
+
+            }else if("org.h2.Driver".equals(className)){
+
+            }
+            return Collections.EMPTY_MAP;
+        }
+
+        static Map<String, String> query(String sql, Object ... table){
+            Map<String, String> map = new LinkedHashMap<>();
+            try {
+                PreparedStatement ps = connection.prepareStatement(sql);
+                for (int i = 0; i < table.length; i++) {
+                    ps.setObject(i+1, table[i]);
+                }
+                ResultSet rs = ps.executeQuery();
+                while(rs.next()){
+                    map.put(rs.getString(1), rs.getString(2));
+                }
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            return map;
+        }
+
+
+        static void allTable() throws Exception{
+            DatabaseMetaData metaData = connection.getMetaData();
+            ResultSet tables = metaData.getTables(null, null, null, new String[]{"TABLE"});
+            while(tables.next()){
+                try{
+                    for (int i = 1; ; i++) {
+                        System.out.print(i + " " + tables.getObject(i)+" ; ");
+                    }
+                }catch (Exception e){
+                    System.err.println(e.getMessage());
+                }
+            }
+        }
+
+        @Data
+        static class Table{
+            private String tableName;
+            private String tableComments;
+            private List<Col> cols;
+        }
+
+        @Data
+        static class Col{
+            private String colName;
+            private String colType;
+            private String colComments;
+        }
     }
 }
