@@ -11,7 +11,7 @@ public class JdbcUtils {
 
     public static final String CLASS_NAME = "org.h2.Driver";
     public static final String USERNAME = "root";
-    public static final String PASSWORD = "r";
+    public static final String PASSWORD = "root";
     public static final String JDBC_URL = "jdbc:h2:tcp://192.168.88.201:8082/~/test";
 
     private static class Init{

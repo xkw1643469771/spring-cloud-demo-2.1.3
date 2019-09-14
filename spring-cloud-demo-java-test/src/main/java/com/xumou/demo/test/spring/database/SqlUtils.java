@@ -36,8 +36,13 @@ public class SqlUtils {
         }
     };
 
-    /** 忽略指定字段 */
-    public static final ColumnCall IGNORE(String fieldNames){
+    /** 查询别名, 对应字段名 */
+    public static final ColumnCall SEL_AS = column -> {
+        column.setColumnName(column.columnName + " as " + column.fieldName);
+    };
+
+    /** 指定字段 */
+    public static final ColumnCall BYCOL(String fieldNames){
         isTree(!empty(fieldNames), "fieldNames not is null");
         Set<String> set = strToSet(fieldNames, ",");
         return column -> {
@@ -56,13 +61,13 @@ public class SqlUtils {
                 if(column.ignore) return;
                 fields.add(column.getFiled());
             };
-            return updateWhereSql(list.get(0), joins(columnCalls, join(call)), join(IGNORE(fieldNames), call));
+            return updateWhereSql(list.get(0), joins(columnCalls, join(call)), join(BYCOL(fieldNames), call));
         });
     }
 
     /** 通过指定字段更新 */
     public static SqlObj updateByColSql(Object obj, String fieldNames, ColumnCall ... columnCalls){
-        return updateWhereSql(obj, columnCalls, join(IGNORE(fieldNames)));
+        return updateWhereSql(obj, columnCalls, join(BYCOL(fieldNames)));
     }
 
     /** 通过条件更新 */
@@ -95,12 +100,30 @@ public class SqlUtils {
 
     /** 根据指定字段删除 */
     public static SqlObj deleteByColSql(Object obj, String filedNames, ColumnCall ... whereCalls){
-        return deleteWhereSql(obj, joins(join(IGNORE(filedNames)), whereCalls));
+        return deleteWhereSql(obj, joins(join(BYCOL(filedNames)), whereCalls));
     }
 
     /** 根据条件删除 */
     public static SqlObj deleteWhereSql(Object obj, ColumnCall ... whereCalls){
         return deleteWhereSql(obj, tableName(obj), whereCalls);
+    }
+
+    /** 根据指定字段查询 */
+    public static SqlObj selectWhereByColSql(Object obj, String whereFieldNames, ColumnCall ... commonCall){
+        return selectWhereSql(obj, join(), join(BYCOL(whereFieldNames)), commonCall);
+    }
+
+    /** 根据条件查询 */
+    public static SqlObj selectWhereSql(Object obj, ColumnCall[] columnCalls, ColumnCall[] whereCalls, ColumnCall ... commonCall){
+        SqlObj selectSql = selectSql(obj, joins(commonCall, columnCalls));
+        SqlObj whereSql = whereSql(obj, joins(commonCall, whereCalls));
+        String sql = selectSql.getSql() + (empty(whereSql.getSql()) ? "" : "where " + whereSql.getSql());
+        return sqlObj(sql, arrsToList(whereSql.getArgs()));
+    }
+
+    /** 查询所有 */
+    public static SqlObj selectSql(Object obj, ColumnCall ... whereCalls){
+        return selectSql(obj,tableName(obj), whereCalls);
     }
 
     private static BatchSqlObj batchExecuteSql(List list, BatchCall call){
@@ -162,6 +185,21 @@ public class SqlUtils {
         return sqlObj;
     }
 
+    /** 查询所有，自己指定表名 */
+    public static SqlObj selectSql(Object obj, String tableName, ColumnCall ... columnCalls){
+        StringBuilder sb = new StringBuilder();
+        sb.append("select ");
+        sql(obj, joins(columnCalls, join(column -> {
+            if(column.ignore) return;
+            sb.append(column.getColumnName()).append(", ");
+        })));
+        delEnd(sb, ", ");
+        endBlank(sb);
+        sb.append("from ").append(tableName);
+        endBlank(sb);
+        return sqlObj(sb.toString(), Arrays.asList());
+    }
+
     /** 条件拼接 */
     public static SqlObj whereSql(Object obj, ColumnCall ... columnCalls){
         StringBuilder sb = new StringBuilder();
@@ -179,7 +217,8 @@ public class SqlUtils {
         })));
         delEnd(sb, ", ");
         delStart(sb,"and ");
-        String sql = empty(sb.toString().trim()) ? "" : "(" + sb + ")";
+        String sql = sb.toString();
+        sql = empty(sql.trim()) ? "" : "(" + sb + ")";
         return sqlObj(sql, args);
     }
 
@@ -322,8 +361,29 @@ public class SqlUtils {
     public static class SqlObj{
         private String sql;
         private Object[] args;
+
         public int update(JdbcTemplate jdbcTemplate){
             return jdbcTemplate.update(sql, args);
+        }
+
+        public <T> List<T> query(JdbcTemplate jdbcTemplate, Class<T> c){
+            return jdbcTemplate.query(sql, args, (rs, rowNum) -> {
+                Object o = classObj(c);
+                sql(o, column -> {
+                    try {
+                        Object val = rs.getObject(column.getColumnName(), column.getFiled().getType());
+                        column.getFiled().set(o, val);
+                    } catch (Exception e) {
+                        try {
+                            Object val = rs.getObject(column.getFieldName(), column.getFiled().getType());
+                            column.getFiled().set(o, val);
+                        } catch (Exception e2) {
+                            System.err.println(e2.getMessage());
+                        }
+                    }
+                });
+                return (T) o;
+            });
         }
     }
 
@@ -364,6 +424,14 @@ public class SqlUtils {
     }
 
     // =================================================================================================================
+
+    public static Object classObj(Class c){
+        try {
+            return c.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static String generatorStr(String table){
         return Generator.classString(table);
