@@ -2,6 +2,8 @@ package com.xumou.demo.test.spring.database;
 
 import org.junit.Test;
 
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -94,12 +96,30 @@ public class DatabaseTest {
     }
 
     @Test
-    public void generatorStr(){
+    public void whereTest(){
+        TblTest t1 = new TblTest();
+        t1.setColumn1(123);
+        t1.setColumnTow("123123");
+        SqlUtils.SqlObj sqlObj = SqlUtils.whereSql(t1, column -> {
+            if(column.getFieldName().equals("columnTow") || column.getFieldName().equals("column3")){
+                column.setExtSql("and # > 132123123123123");
+            }
+        });
+        System.out.println(sqlObj);
+    }
+
+
+    @Test
+    public void generatorOneTable(){
+        String tableName = "TBL_USER";
         SqlUtils.setGeneratorDatabse("org.h2.Driver",
                 "jdbc:h2:tcp://192.168.88.201:8082/~/test",
                 "root", "root");
-        String str = SqlUtils.generatorStr("TBL_USER");
+        String str = SqlUtils.generatorStr(tableName);
+        Toolkit.getDefaultToolkit().getSystemClipboard()
+                .setContents(new StringSelection(str), null);
         System.out.println(str);
+        System.out.println("已经复制！");
     }
 
 }

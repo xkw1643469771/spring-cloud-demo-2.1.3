@@ -15,6 +15,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -167,16 +168,12 @@ public class SqlUtils {
         List<Object> args = new LinkedList<>();
         sql(obj, joins(columnCalls, join(column -> {
             if(column.ignore) return;
-            if(column.getAndSql() == null){
+            if(column.extSql == null){
                 sb.append("and ").append(column.getColumnName()).append("=").append("? ");
                 args.add(column.getFieldValue());
             }else{
-                sb.append(column.getAndSql());
-                if(column.getAndSqlArgs() != null){
-                    for (Object andSqlArg : column.getAndSqlArgs()) {
-                        args.add(andSqlArg);
-                    }
-                }
+                sb.append(column.getExtSql().replaceAll("#", column.getColumnName()));
+                if(column.extSqlArgs != null) args.addAll(Arrays.asList(column.extSqlArgs));
                 endBlank(sb);
             }
         })));
@@ -345,8 +342,8 @@ public class SqlUtils {
         private final String fieldName;
         private Object fieldValue;
         private String columnName;
-        private String andSql;
-        private Object[] andSqlArgs;
+        private String extSql;
+        private Object[] extSqlArgs;
         private boolean ignore;
     }
 
