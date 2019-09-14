@@ -135,6 +135,36 @@ public class DatabaseTest {
         });
     }
 
+    @Test
+    public void linkedSelect(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setId(22);
+            List<TblUser> list = SqlUtils.select(tab).where(tab).byCol("id").list(jdbcTemplate, TblUser.class);
+            for (TblUser tblUser : list) {
+                System.out.println(tblUser);
+            }
+        });
+    }
+
+    @Test
+    public void linkedInsert(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setName("12312312312321313");
+            SqlUtils.insert(tab).update(jdbcTemplate);
+        });
+    }
+
+    @Test
+    public void linkedUpdate(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setName("345345");
+            tab.setId(271716);
+            SqlUtils.update(tab).byCol("name").where(tab).byCol("id").update(jdbcTemplate);
+        });
+    }
 
     @Test
     public void generatorOneTable(){

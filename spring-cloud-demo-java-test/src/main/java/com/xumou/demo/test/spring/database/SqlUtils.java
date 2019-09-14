@@ -239,6 +239,14 @@ public class SqlUtils {
 
     // =================================================================================================================
 
+    public static Object classObj(Class c){
+        try {
+            return c.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static String tableName(Object obj) {
         isTree(obj != null, "obj not is null");
         Alias alias = obj.getClass().getAnnotation(Alias.class);
@@ -424,14 +432,6 @@ public class SqlUtils {
     }
 
     // =================================================================================================================
-
-    public static Object classObj(Class c){
-        try {
-            return c.newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     public static String generatorStr(String table){
         return Generator.classString(table);
@@ -637,4 +637,103 @@ public class SqlUtils {
             private String colComments;
         }
     }
+
+    // =================================================================================================================
+
+    public static class LinkedOps{
+
+        public static final int INSERT = 1;
+        public static final int DELETE = 2;
+        public static final int UPDATE = 3;
+        public static final int SELECT = 4;
+
+        private List<ColumnCall> columnCalls = new LinkedList<>();
+        private List<ColumnCall> whereCalls = new LinkedList<>();
+        private List<ColumnCall> currCalls = whereCalls;
+        private Object columnObj;
+        private Object whereObj;
+        private int opsType;
+
+        public LinkedOps ignoreNull(){
+            currCalls.add(IGNORE_NULL);
+            return this;
+        }
+        public LinkedOps useAsAlias(){
+            currCalls.add(SEL_AS);
+            return this;
+        }
+        public LinkedOps byCol(String fieldNames){
+            currCalls.add(BYCOL(fieldNames));
+            return this;
+        }
+        public LinkedOps custom(ColumnCall call){
+            currCalls.add(call);
+            return this;
+        }
+        public LinkedOps select(Object obj){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = SELECT;
+            return this;
+        }
+        public LinkedOps insert(Object obj){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = INSERT;
+            return this;
+        }
+        public LinkedOps update(Object obj){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = UPDATE;
+            return this;
+        }
+        public LinkedOps where(Object obj){
+            this.whereObj = obj;
+            this.currCalls = whereCalls;
+            return this;
+        }
+        public int update(JdbcTemplate jdbcTemplate){
+            if(opsType == INSERT){
+                SqlObj insertSql = insertSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+                return insertSql.update(jdbcTemplate);
+            }else if(opsType == UPDATE){
+                SqlObj updateSql = updateSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+                SqlObj whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
+                updateSql.sql  = updateSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
+                updateSql.args = arrsToList(updateSql.args, whereSql.args).toArray();
+                return updateSql.update(jdbcTemplate);
+            }
+            throw new RuntimeException("");
+        }
+        public <T> List<T> list(JdbcTemplate jdbcTemplate, Class<T> c){
+            if(opsType == SELECT){
+                SqlObj selectSql = selectSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+                SqlObj whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
+                selectSql.sql  = selectSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
+                selectSql.args = arrsToList(selectSql.args, whereSql.args).toArray();
+                return selectSql.query(jdbcTemplate, c);
+            }
+            throw new RuntimeException("");
+        }
+    }
+
+    public static LinkedOps insert(Object obj){
+        LinkedOps linkedOps = new LinkedOps();
+        linkedOps.insert(obj);
+        return linkedOps;
+    }
+
+    public static LinkedOps update(Object obj){
+        LinkedOps linkedOps = new LinkedOps();
+        linkedOps.update(obj);
+        return linkedOps;
+    }
+
+    public static LinkedOps select(Object obj){
+        LinkedOps linkedOps = new LinkedOps();
+        linkedOps.select(obj);
+        return linkedOps;
+    }
+
 }
