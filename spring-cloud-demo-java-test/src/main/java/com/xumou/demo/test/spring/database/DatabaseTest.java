@@ -102,8 +102,9 @@ public class DatabaseTest {
         t1.setColumnTow("123123");
         SqlUtils.SqlObj sqlObj = SqlUtils.whereSql(t1, column -> {
             if(column.getFieldName().equals("columnTow") || column.getFieldName().equals("column3")){
-                column.setExtSql("and # > 132123123123123");
+                column.setExtSql("and # in (?,?,?,?,?,?,?,?)");
             }
+            column.setExtSqlArgs(new String[]{"1","2","3","4","5","6","7","8"});
         });
         System.out.println(sqlObj);
     }
