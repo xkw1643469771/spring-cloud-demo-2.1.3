@@ -487,9 +487,11 @@ public class SqlUtils {
             StringBuilder sb = new StringBuilder();
             Set<Class> set = new HashSet<>();
             set.add(SqlUtils.class);
+            set.add(Data.class);
             line(sb, "/**");
             line(sb, " * ", table.getTableComments());
             line(sb, " */");
+            line(sb, "@Data");
             line(sb, "@SqlUtils.Alias(\"", table.getTableName(), "\")");
             line(sb, "public class " ,className(table.getTableName()) ," {");
             for (Col col : table.getCols()) {

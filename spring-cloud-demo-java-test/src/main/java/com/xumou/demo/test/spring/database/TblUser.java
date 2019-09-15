@@ -1,9 +1,9 @@
 package com.xumou.demo.test.spring.database;
 
 import java.math.BigDecimal;
+import lombok.Data;
 import java.util.Date;
 import com.xumou.demo.test.spring.database.SqlUtils;
-import lombok.Data;
 
 /**
  * 用户信息
@@ -12,7 +12,7 @@ import lombok.Data;
 @SqlUtils.Alias("TBL_USER")
 public class TblUser {
 	/**
-	 * 主键
+	 *
 	 */
 	@SqlUtils.Alias("ID")
 	private Integer id;
