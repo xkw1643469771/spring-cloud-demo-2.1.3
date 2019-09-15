@@ -737,7 +737,11 @@ public class SqlUtils {
             for (Object obj : columnObjs) {
                 List args = new LinkedList();
                 for (Column column : columns) {
-                    args.add(fieldValue(column.getFiled(), obj));
+                    if(empty(column.extSql)){
+                        args.add(fieldValue(column.getFiled(), obj));
+                    }else{
+                        args.addAll(arrsToList(column.getExtSqlArgs()));
+                    }
                 }
                 batchArgs.add(args.toArray());
             }
@@ -746,7 +750,6 @@ public class SqlUtils {
         public SqlObj go(){
             toBefore();
             SqlObj whereSql = sqlObj("", Arrays.asList());
-            if(where) whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
             if(opsType == INSERT){
                 return insertSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
             }else if(opsType == DELETE){
@@ -754,11 +757,13 @@ public class SqlUtils {
                 return whereSql;
             }else if(opsType == UPDATE){
                 SqlObj updateSql = updateSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+                if(where) whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
                 updateSql.sql  = updateSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
                 updateSql.args = arrsToList(updateSql.args, whereSql.args).toArray();
                 return updateSql;
             }else if(opsType == SELECT){
                 SqlObj selectSql = selectSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+                if(where) whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
                 selectSql.sql  = selectSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
                 selectSql.args = arrsToList(selectSql.args, whereSql.args).toArray();
                 return selectSql;

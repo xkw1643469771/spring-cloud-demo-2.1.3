@@ -183,6 +183,30 @@ public class DatabaseTest {
     }
 
     @Test
+    public void linkedBatchUpdate(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setId(1);
+            tab.setName("就是要花钱");
+            TblUser tab2 = new TblUser();
+            tab2.setId(2);
+            tab2.setName("哈哈");
+            tab2.setOrderNo((long)Integer.MAX_VALUE);
+            SqlUtils.ready()
+                    .update().ignoreNull()
+                    .where().custom(column -> {
+                        if(column.getFieldName().equals("id")){
+                            column.setExtSql("# > ? and # < ?");
+                            column.setExtSqlArgs(new Object[]{100, 2000});
+                        }else{
+                            column.setIgnore(true);
+                        }
+                    }).go(Arrays.asList(tab,tab2))
+                    .batchUpdate(jdbcTemplate);
+        });
+    }
+
+    @Test
     public void linkedDelete(){
         JdbcUtils.transction(jdbcTemplate -> {
             TblUser tab = new TblUser();
