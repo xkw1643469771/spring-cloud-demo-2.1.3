@@ -640,6 +640,10 @@ public class SqlUtils {
 
     // =================================================================================================================
 
+    public static LinkedOps ready(){
+        return new LinkedOps();
+    }
+
     public static class LinkedOps{
 
         public static final int INSERT = 1;
@@ -651,14 +655,16 @@ public class SqlUtils {
         private List<ColumnCall> whereCalls = new LinkedList<>();
         private List<ColumnCall> currCalls = whereCalls;
         private Object columnObj;
+        private List columnObjs;
         private Object whereObj;
         private int opsType;
+        private boolean where;
 
         public LinkedOps ignoreNull(){
             currCalls.add(IGNORE_NULL);
             return this;
         }
-        public LinkedOps useAsAlias(){
+        public LinkedOps selAs(){
             currCalls.add(SEL_AS);
             return this;
         }
@@ -670,11 +676,8 @@ public class SqlUtils {
             currCalls.add(call);
             return this;
         }
-        public LinkedOps select(Object obj){
-            this.columnObj = obj;
-            this.currCalls = columnCalls;
-            this.opsType = SELECT;
-            return this;
+        public LinkedOps insert(){
+            return insert(null);
         }
         public LinkedOps insert(Object obj){
             this.columnObj = obj;
@@ -682,58 +685,101 @@ public class SqlUtils {
             this.opsType = INSERT;
             return this;
         }
+        public LinkedOps delete(){
+            return delete(null);
+        }
+        public LinkedOps delete(Object obj){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = DELETE;
+            return this;
+        }
+        public LinkedOps update(){
+            return update(null);
+        }
         public LinkedOps update(Object obj){
             this.columnObj = obj;
             this.currCalls = columnCalls;
             this.opsType = UPDATE;
             return this;
         }
+        public LinkedOps select(){
+            return select(null);
+        }
+        public LinkedOps select(Object obj){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = SELECT;
+            return this;
+        }
+        public LinkedOps where(){
+            return where(null);
+        }
         public LinkedOps where(Object obj){
             this.whereObj = obj;
             this.currCalls = whereCalls;
+            this.where = true;
             return this;
         }
-        public int update(JdbcTemplate jdbcTemplate){
+        public BatchSqlObj go(List list){
+            this.columnObjs = list;
+            List<Column> columns = new LinkedList<>();
+            columnCalls.add(column -> {
+                if(column.ignore) return;
+                columns.add(column);
+            });
+            whereCalls.add(column -> {
+                if(column.ignore) return;
+                columns.add(column);
+            });
+            SqlObj sqlObj = go();
+            List<Object[]> batchArgs = new LinkedList<>();
+            for (Object obj : columnObjs) {
+                List args = new LinkedList();
+                for (Column column : columns) {
+                    args.add(fieldValue(column.getFiled(), obj));
+                }
+                batchArgs.add(args.toArray());
+            }
+            return batchSqlObj(sqlObj.sql, batchArgs);
+        }
+        public SqlObj go(){
+            toBefore();
+            SqlObj whereSql = sqlObj("", Arrays.asList());
+            if(where) whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
             if(opsType == INSERT){
-                SqlObj insertSql = insertSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
-                return insertSql.update(jdbcTemplate);
+                return insertSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
+            }else if(opsType == DELETE){
+                whereSql.sql = "delete from " + tableName(columnObj) + " " + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
+                return whereSql;
             }else if(opsType == UPDATE){
                 SqlObj updateSql = updateSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
-                SqlObj whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
                 updateSql.sql  = updateSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
                 updateSql.args = arrsToList(updateSql.args, whereSql.args).toArray();
-                return updateSql.update(jdbcTemplate);
-            }
-            throw new RuntimeException("");
-        }
-        public <T> List<T> list(JdbcTemplate jdbcTemplate, Class<T> c){
-            if(opsType == SELECT){
+                return updateSql;
+            }else if(opsType == SELECT){
                 SqlObj selectSql = selectSql(columnObj, columnCalls.toArray(new ColumnCall[]{}));
-                SqlObj whereSql = whereSql(whereObj, whereCalls.toArray(new ColumnCall[]{}));
                 selectSql.sql  = selectSql.sql + (empty(whereSql.sql) ? "" : "where " + whereSql.sql);
                 selectSql.args = arrsToList(selectSql.args, whereSql.args).toArray();
-                return selectSql.query(jdbcTemplate, c);
+                return selectSql;
             }
-            throw new RuntimeException("");
+            throw new RuntimeException("unknown ops type");
         }
-    }
-
-    public static LinkedOps insert(Object obj){
-        LinkedOps linkedOps = new LinkedOps();
-        linkedOps.insert(obj);
-        return linkedOps;
-    }
-
-    public static LinkedOps update(Object obj){
-        LinkedOps linkedOps = new LinkedOps();
-        linkedOps.update(obj);
-        return linkedOps;
-    }
-
-    public static LinkedOps select(Object obj){
-        LinkedOps linkedOps = new LinkedOps();
-        linkedOps.select(obj);
-        return linkedOps;
+        public void toBefore(){
+            Object base = columnObj;
+            if(base == null) base = whereObj;
+            if(columnObjs!=null){
+                for (Object obj : columnObjs) {
+                    if(obj != null){
+                        base = obj;
+                        break;
+                    }
+                }
+            }
+            isTree(base != null, "must be a obj");
+            if(columnObj == null) columnObj = base;
+            if(whereObj == null) whereObj = base;
+        }
     }
 
 }

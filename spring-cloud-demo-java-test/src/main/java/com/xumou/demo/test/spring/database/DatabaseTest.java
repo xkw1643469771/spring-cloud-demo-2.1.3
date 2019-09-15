@@ -140,8 +140,9 @@ public class DatabaseTest {
         JdbcUtils.transction(jdbcTemplate -> {
             TblUser tab = new TblUser();
             tab.setId(22);
-            List<TblUser> list = SqlUtils.select(tab).where(tab).byCol("id").list(jdbcTemplate, TblUser.class);
-            for (TblUser tblUser : list) {
+            tab.setName("不潮不花钱");
+            List<TblUser> query = SqlUtils.ready().select(tab).selAs().where().byCol("name").go().query(jdbcTemplate, TblUser.class);
+            for (TblUser tblUser : query) {
                 System.out.println(tblUser);
             }
         });
@@ -150,9 +151,9 @@ public class DatabaseTest {
     @Test
     public void linkedInsert(){
         JdbcUtils.transction(jdbcTemplate -> {
-            TblUser tab = new TblUser();
-            tab.setName("12312312312321313");
-            SqlUtils.insert(tab).update(jdbcTemplate);
+            TblUser tblUser = new TblUser();
+            tblUser.setName("不潮不花钱");
+            SqlUtils.ready().insert(tblUser).ignoreNull().go().update(jdbcTemplate);
         });
     }
 
@@ -160,9 +161,37 @@ public class DatabaseTest {
     public void linkedUpdate(){
         JdbcUtils.transction(jdbcTemplate -> {
             TblUser tab = new TblUser();
-            tab.setName("345345");
-            tab.setId(271716);
-            SqlUtils.update(tab).byCol("name").where(tab).byCol("id").update(jdbcTemplate);
+            tab.setId(271718);
+            SqlUtils.ready()
+                    .update(tab).ignoreNull()
+                    .where().byCol("name")
+                    .go().update(jdbcTemplate);
+        });
+    }
+
+    @Test
+    public void linkedBatchInsert(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setName("就是要花钱");
+            TblUser tab2 = new TblUser();
+            tab2.setOrderNo((long)Integer.MAX_VALUE);
+            SqlUtils.ready()
+                    .insert()
+                    .go(Arrays.asList(tab)).batchUpdate(jdbcTemplate);
+        });
+    }
+
+    @Test
+    public void linkedDelete(){
+        JdbcUtils.transction(jdbcTemplate -> {
+            TblUser tab = new TblUser();
+            tab.setId(123);
+            SqlUtils.ready()
+                    .delete(tab)
+                    .where().ignoreNull()
+                    .go()
+                    .update(jdbcTemplate);
         });
     }
 
