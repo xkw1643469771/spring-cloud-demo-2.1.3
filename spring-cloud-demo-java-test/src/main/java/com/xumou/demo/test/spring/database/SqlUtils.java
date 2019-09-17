@@ -663,56 +663,40 @@ public class SqlUtils {
         private boolean where;
 
         public LinkedOps ignoreNull(){
-            currCalls.add(IGNORE_NULL);
-            return this;
+            return addCall(IGNORE_NULL);
         }
         public LinkedOps selAs(){
-            currCalls.add(SEL_AS);
-            return this;
+            return addCall(SEL_AS);
         }
         public LinkedOps byCol(String fieldNames){
-            currCalls.add(BYCOL(fieldNames));
-            return this;
+            return addCall(BYCOL(fieldNames));
         }
         public LinkedOps custom(ColumnCall call){
-            currCalls.add(call);
-            return this;
+            return addCall(call);
         }
         public LinkedOps insert(){
             return insert(null);
         }
         public LinkedOps insert(Object obj){
-            this.columnObj = obj;
-            this.currCalls = columnCalls;
-            this.opsType = INSERT;
-            return this;
+            return opsType(obj, columnCalls, INSERT);
         }
         public LinkedOps delete(){
             return delete(null);
         }
         public LinkedOps delete(Object obj){
-            this.columnObj = obj;
-            this.currCalls = columnCalls;
-            this.opsType = DELETE;
-            return this;
+            return opsType(obj, columnCalls, DELETE);
         }
         public LinkedOps update(){
             return update(null);
         }
         public LinkedOps update(Object obj){
-            this.columnObj = obj;
-            this.currCalls = columnCalls;
-            this.opsType = UPDATE;
-            return this;
+            return opsType(obj, columnCalls, UPDATE);
         }
         public LinkedOps select(){
             return select(null);
         }
         public LinkedOps select(Object obj){
-            this.columnObj = obj;
-            this.currCalls = columnCalls;
-            this.opsType = SELECT;
-            return this;
+            return opsType(obj, columnCalls, SELECT);
         }
         public LinkedOps where(){
             return where(null);
@@ -786,6 +770,16 @@ public class SqlUtils {
             isTree(base != null, "must be a obj");
             if(columnObj == null) columnObj = base;
             if(whereObj == null) whereObj = base;
+        }
+        private LinkedOps opsType(Object obj, List<ColumnCall> columnCalls, int opsType){
+            this.columnObj = obj;
+            this.currCalls = columnCalls;
+            this.opsType = opsType;
+            return this;
+        }
+        private LinkedOps addCall(ColumnCall call){
+            currCalls.add(call);
+            return this;
         }
     }
 
