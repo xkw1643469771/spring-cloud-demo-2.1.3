@@ -5,8 +5,13 @@ import com.greenpineyu.fel.FelEngine;
 import com.greenpineyu.fel.FelEngineImpl;
 import com.greenpineyu.fel.context.FelContext;
 import com.greenpineyu.fel.context.MapContext;
+import com.greenpineyu.fel.parser.FelLexer;
 import com.xumou.demo.test.utils.ScriptUtils;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.Token;
+import org.antlr.runtime.TokenSource;
 import org.junit.Test;
 
 import javax.script.ScriptEngine;
@@ -160,5 +165,15 @@ public class FelEngineDemo {
         System.out.println(e2.eval(c2));
 
         System.out.println(e1.eval(c1));
+    }
+
+    // 解析表达式
+    @Test
+    public void test8(){
+        FelLexer felLexer = new FelLexer(new ANTLRStringStream("a+b"));
+        TokenSource tokenSource = new CommonTokenStream(felLexer).getTokenSource();
+        for (Token token = tokenSource.nextToken(); token.getType() != -1 ; token = tokenSource.nextToken()) {
+            System.out.println(token);
+        }
     }
 }
