@@ -39,11 +39,11 @@ public class ScriptUtils {
         return readStr(ClassLoader.getSystemResourceAsStream(name));
     }
 
-    private static String readStr(InputStream is){
+    public static String readStr(InputStream is){
         return readStr(is, "UTF-8");
     }
 
-    private static String readStr(InputStream is, String enCode){
+    public static String readStr(InputStream is, String enCode){
         BufferedReader br = null;
         try {
             br = new BufferedReader(new InputStreamReader(is, enCode));
